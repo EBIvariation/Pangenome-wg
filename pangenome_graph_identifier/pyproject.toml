@@ -1,0 +1,11 @@
+[project]
+name = "pangenome-id"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+[project.scripts]
+pangenome-id = "pangenome_id.cli:main"
+
+[build-system]
+requires = ["setuptools>=42"]
+build-backend = "setuptools.build_meta"
