@@ -1,7 +1,5 @@
 """GFA v1 / v1.2 parser."""
 
-from __future__ import annotations
-
 from pangenome_id.model import AbstractGraph, Node, Path, Step
 from pangenome_id.parsers.base import BaseParser
 
