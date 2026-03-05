@@ -21,8 +21,10 @@ GFA file  ──[parse]──►  Abstract Graph Model  ──[canonicalize]─�
 Node identities are derived from their **sequence content**, not from the name assigned in the source file:
 
 ```
-node.id = sha512(normalized_sequence)[:16]
+node.id = sha512t24u(normalized_sequence)
 ```
+
+`sha512t24u` is the GA4GH standard digest: SHA-512 of the UTF-8 sequence, first 24 bytes, URL-safe base64 encoded (32 ASCII chars).
 
 Two formats that represent the same genomic sequence under different node names therefore produce the same node id, and thus the same graph hash.
 
@@ -44,7 +46,6 @@ Python ≥ 3.10 required. No external dependencies.
 ```
 pangenome-id [-h] [--format {gfa1,gfa2,auto}]
              [--overlap-policy {discard,length_only,full_cigar}]
-             [--style {hex,ga4gh}]
              [--verbose]
              file
 ```
@@ -52,11 +53,8 @@ pangenome-id [-h] [--format {gfa1,gfa2,auto}]
 **Examples:**
 
 ```bash
-# Auto-detect format, output full hex identifier
+# Auto-detect format
 pangenome-id graph.gfa
-
-# Compact GA4GH-style identifier
-pangenome-id graph.gfa --style ga4gh
 
 # GFA v2 file with verbose stats
 pangenome-id graph.gfa2 --format gfa2 --verbose
@@ -78,12 +76,70 @@ Canonical size: 48291 bytes
 
 ---
 
-## Output styles
+## Output format
 
-| Style | Example |
+Identifiers are always in GA4GH format:
+
+```
+ga4gh:pg.SXaB3kqLm9vNpRt7YwZcAeQf
+```
+
+The suffix is the `sha512t24u` digest of the canonical bytes: first 24 bytes of SHA-512, URL-safe base64 encoded (32 chars).
+
+---
+
+## What contributes to the identifier
+
+The identifier is the SHA-512 hash of a canonical byte string assembled from these components, in order:
+
+### Delimiters
+
+Three control bytes act as separators. They never appear in node ids (URL-safe base64), orientations (`+`/`-`), overlap strings, or path names.
+
+| Byte | Role |
 |---|---|
-| `hex` (default) | `3a7f1b9c2e4d8f0a...` (128 hex chars) |
-| `ga4gh` | `ga4gh:pg.SXaB3kqLm9vNpRt7YwZcAe` |
+| `\x00` | Field separator — between fields within a record |
+| `\x01` | Record separator — between individual nodes / edges / paths |
+| `\x02` | Section separator — between the nodes, edges, and paths sections |
+
+### Header (2 bytes)
+
+| Field | Size | Notes |
+|---|---|---|
+| Format version | 1 B | Currently `0x02` |
+| Overlap policy | 1 B | `discard=0x00`, `length_only=0x01`, `full_cigar=0x02` |
+
+### Nodes section
+
+Each node sorted by id, followed by the section separator:
+
+```
+id \x01  id \x01  ...  \x02
+```
+
+Node id is `sha512t24u(normalized_sequence)` — 32 URL-safe base64 chars. For `*`-sequence nodes, falls back to the source node name.
+
+### Edges section
+
+Each edge sorted by `(node_a, orient_a, node_b, orient_b)`, followed by the section separator:
+
+```
+node_a \x00 orient_a \x00 node_b \x00 orient_b \x00 overlap \x01  ...  \x02
+```
+
+`overlap` is empty when policy is `discard`, a length string when `length_only`, raw CIGAR when `full_cigar`.
+
+### Paths section
+
+Each path sorted by name (step order preserved), followed by the section separator:
+
+```
+name \x00 is_reference \x00 step_id \x00 orient [ \x00 step_id \x00 orient ... ] \x01  ...  \x02
+```
+
+`is_reference` is the ASCII character `1` or `0`.
+
+> **What is NOT included:** source file names, original node names (they are replaced by sequence-derived ids), comment/header lines, fragment records (`F`), unordered groups (`U`), and edge ids from GFA v2.
 
 ---
 
@@ -101,35 +157,28 @@ The overlap policy controls how CIGAR overlap strings on edges affect the identi
 
 ## Format support
 
-### GFA v1
-Processes `S` (segment), `L` (link), and `P` (path) lines. All other lines (`H`, `C`, `#`, …) are skipped.
+### GFA v1 / v1.2
+
+| Record | Processed as | Notes |
+|---|---|---|
+| `S` | Node | Sequence normalized to uppercase DNA (U→T); id = `sha512t24u(sequence)` |
+| `L` | Edge | CIGAR overlap resolved per overlap policy |
+| `J` | Edge | Jump distance (plain integer) resolved per overlap policy |
+| `P` | Path | Comma-separated `seg+`/`seg-` segments |
+| `W` | Path | Walk string `>seg<seg…`; name built as `sample_id#hap_index#seq_id` (PanSN) |
+
+All other lines (`H`, `C`, `#`, …) are skipped.
 
 ### GFA v2
-Processes `S` (segment), `E` (edge), and `O` (ordered group) lines. `F` (fragment) and `U` (unordered group) records are skipped as they have no equivalent in the topology model. Edge ids are discarded.
+| Record | Processed as | Notes |
+|---|---|---|
+| `S` | Node | |
+| `E` | Edge | Edge ids are discarded |
+| `O` | Path | Ordered group |
+
+`F` (fragment) and `U` (unordered group) records are skipped as they have no equivalent in the topology model.
 
 Format is auto-detected from the `VN:Z:` header tag, or from the `.gfa` file extension.
-
----
-
-## Library usage
-
-```python
-from pangenome_id import identify_from_string
-from pangenome_id.parsers.gfa1 import GFA1Parser
-from pangenome_id.canonicalize import serialize
-from pangenome_id.hasher import compute_identifier, identify_graph
-
-# From a file
-graph = GFA1Parser().parse("graph.gfa")
-identifier = identify_graph(graph, style="ga4gh")
-
-# From a string (useful in tests)
-identifier = identify_from_string(gfa_text, format="gfa1", style="hex")
-
-# Low-level: canonical bytes first
-canonical = serialize(graph)
-identifier = compute_identifier(canonical, style="hex")
-```
 
 ---
 

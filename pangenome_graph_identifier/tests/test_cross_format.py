@@ -25,10 +25,8 @@ def test_cross_format_identity():
     assert id1 == id2, f"GFA1={id1!r}, GFA2={id2!r}"
 
 
-def test_cross_format_identity_ga4gh():
-    id1 = identify_from_string(GFA1_GRAPH, format="gfa1", style="ga4gh")
-    id2 = identify_from_string(GFA2_GRAPH, format="gfa2", style="ga4gh")
-    assert id1 == id2
+def test_identifier_has_ga4gh_prefix():
+    id1 = identify_from_string(GFA1_GRAPH, format="gfa1")
     assert id1.startswith("ga4gh:pg.")
 
 

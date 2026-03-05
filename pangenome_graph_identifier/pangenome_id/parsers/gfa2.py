@@ -31,9 +31,9 @@ class GFA2Parser(BaseParser):
                 # S <id> <len> <seq> [tags...]
                 seg_id = fields[1]
                 seq = fields[3] if len(fields) > 3 else "*"
-                node_id, normalized = self.node_id_from_sequence(seq, seg_id)
+                node_id = self.node_id_from_sequence(seq, seg_id)
                 name_to_id[seg_id] = node_id
-                nodes.append(Node(id=node_id, sequence=normalized))
+                nodes.append(Node(id=node_id))
 
             elif record_type == "E":
                 # E <edge_id> <sid1><orient> <sid2><orient> <beg1> <end1> <beg2> <end2> <align>

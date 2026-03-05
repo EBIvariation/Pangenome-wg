@@ -1,10 +1,10 @@
 """Tests for model and base parser utilities."""
 
-import hashlib
 import warnings
 
 import pytest
 
+from pangenome_id.hasher import sha512t24u
 from pangenome_id.parsers.base import BaseParser
 from pangenome_id.parsers.gfa1 import GFA1Parser
 
@@ -32,33 +32,26 @@ def test_normalize_sequence_strips_whitespace():
 
 def test_node_id_from_sequence():
     p = ConcreteParser()
-    node_id, normalized = p.node_id_from_sequence("ACGT", "fallback")
-    expected = hashlib.sha256("ACGT".encode("ascii")).hexdigest()[:16]
-    assert node_id == expected
-    assert normalized == "ACGT"
+    node_id = p.node_id_from_sequence("ACGT", "fallback")
+    assert node_id == sha512t24u("ACGT".encode("ascii"))
 
 
 def test_node_id_lowercase_normalized():
     p = ConcreteParser()
-    node_id_lower, _ = p.node_id_from_sequence("acgt", "x")
-    node_id_upper, _ = p.node_id_from_sequence("ACGT", "x")
-    assert node_id_lower == node_id_upper
+    assert p.node_id_from_sequence("acgt", "x") == p.node_id_from_sequence("ACGT", "x")
 
 
 def test_node_id_u_to_t_normalized():
     p = ConcreteParser()
-    node_id_u, _ = p.node_id_from_sequence("AUCG", "x")
-    node_id_t, _ = p.node_id_from_sequence("ATCG", "x")
-    assert node_id_u == node_id_t
+    assert p.node_id_from_sequence("AUCG", "x") == p.node_id_from_sequence("ATCG", "x")
 
 
 def test_node_id_star_uses_fallback():
     p = ConcreteParser()
     with warnings.catch_warnings(record=True) as w:
         warnings.simplefilter("always")
-        node_id, normalized = p.node_id_from_sequence("*", "my_node")
+        node_id = p.node_id_from_sequence("*", "my_node")
     assert node_id == "my_node"
-    assert normalized == ""
     assert len(w) == 1
     assert "my_node" in str(w[0].message)
 

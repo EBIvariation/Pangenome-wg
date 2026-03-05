@@ -5,8 +5,7 @@ from dataclasses import dataclass
 
 @dataclass
 class Node:
-    id: str        # stable identifier derived from sequence (or source name if sequence is "*")
-    sequence: str  # uppercase DNA, U replaced by T; empty string when sequence was "*"
+    id: str  # stable identifier derived from sequence (or source name if sequence is "*")
 
 
 @dataclass

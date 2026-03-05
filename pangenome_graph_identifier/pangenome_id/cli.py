@@ -42,12 +42,6 @@ def main() -> None:
         help="How to treat overlaps (default: discard)",
     )
     parser.add_argument(
-        "--style",
-        choices=["hex", "ga4gh"],
-        default="hex",
-        help="Output identifier style (default: hex)",
-    )
-    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Print stats to stderr",
@@ -72,7 +66,7 @@ def main() -> None:
 
     graph = gfa_parser.parse(args.file)
     canonical = serialize(graph)
-    identifier = compute_identifier(canonical, style=args.style)
+    identifier = compute_identifier(canonical)
 
     print(identifier)
 

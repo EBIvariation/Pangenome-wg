@@ -1,11 +1,11 @@
 """Abstract base parser."""
 
 from __future__ import annotations
-import hashlib
 import re
 import warnings
 from abc import ABC, abstractmethod
 
+from pangenome_id.hasher import sha512t24u
 from pangenome_id.model import AbstractGraph, Edge
 
 
@@ -23,20 +23,19 @@ class BaseParser(ABC):
     def flip_orient(self, orient: str) -> str:
         return "-" if orient == "+" else "+"
 
-    def node_id_from_sequence(self, seq: str, fallback_name: str) -> tuple[str, str]:
-        """Return (node_id, normalized_sequence).
+    def node_id_from_sequence(self, seq: str, fallback_name: str) -> str:
+        """Return node_id derived from sequence.
 
-        If seq is '*', use fallback_name as node_id and empty string as sequence.
+        If seq is '*', use fallback_name as node_id.
         """
         if seq == "*":
             warnings.warn(
                 f"Node '{fallback_name}' has no sequence; sequence-derived identity unavailable.",
                 stacklevel=3,
             )
-            return fallback_name, ""
+            return fallback_name
         normalized = self.normalize_sequence(seq)
-        node_id = hashlib.sha256(normalized.encode("ascii")).hexdigest()[:16]
-        return node_id, normalized
+        return sha512t24u(normalized.encode("ascii"))
 
     def canonical_edge(
         self,
@@ -59,6 +58,18 @@ class BaseParser(ABC):
         rev = (node_b, self.flip_orient(orient_b), node_a, self.flip_orient(orient_a))
         a, oa, b, ob = min(fwd, rev)
         return Edge(node_a=a, orient_a=oa, node_b=b, orient_b=ob, overlap=overlap)
+
+    def _resolve_jump_distance(self, distance: str) -> str | None:
+        """Apply overlap_policy to a Jump line distance field.
+
+        Jump distances are plain integers (or '*'), not CIGAR strings.
+        Both 'length_only' and 'full_cigar' return the value verbatim.
+        """
+        if self.overlap_policy == "discard":
+            return None
+        if distance == "*" or not distance:
+            return None
+        return distance
 
     def _resolve_overlap(self, cigar: str) -> str | None:
         """Apply overlap_policy to a CIGAR string. Returns processed overlap or None.

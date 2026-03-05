@@ -7,38 +7,29 @@ from pangenome_id.canonicalize import serialize
 from pangenome_id.model import AbstractGraph
 
 
-def compute_identifier(canonical_bytes: bytes, style: str = "hex") -> str:
-    """Hash canonical bytes into a graph identifier string.
+def sha512t24u(data: bytes) -> str:
+    """GA4GH sha512t24u digest: first 24 bytes of SHA-512, URL-safe base64."""
+    digest = hashlib.sha512(data).digest()
+    return base64.urlsafe_b64encode(digest[:24]).decode("ascii")
 
-    Args:
-        canonical_bytes: Output of canonicalize.serialize().
-        style: "hex" returns the full 64-character SHA-512 hexdigest.
-               "ga4gh" returns a compact namespaced identifier of the form
-               "ga4gh:pg.<24 url-safe base64 chars>" derived from the first
-               18 bytes of the digest (truncated after stripping padding).
 
-    Raises:
-        ValueError: If style is not "hex" or "ga4gh".
+def compute_identifier(canonical_bytes: bytes) -> str:
+    """Hash canonical bytes into a GA4GH-style graph identifier.
+
+    Returns a string of the form "ga4gh:pg.<32 url-safe base64 chars>",
+    derived from the sha512t24u digest of the canonical bytes.
     """
-    digest = hashlib.sha512(canonical_bytes).digest()
-    if style == "hex":
-        return digest.hex()
-    elif style == "ga4gh":
-        b64 = base64.urlsafe_b64encode(digest).decode("ascii").rstrip("=")
-        return f"ga4gh:pg.{b64[:24]}"
-    else:
-        raise ValueError(f"Unknown style: {style!r}")
+    return f"ga4gh:pg.{sha512t24u(canonical_bytes)}"
 
 
-def identify_graph(graph: AbstractGraph, style: str = "hex") -> str:
-    return compute_identifier(serialize(graph), style)
+def identify_graph(graph: AbstractGraph) -> str:
+    return compute_identifier(serialize(graph))
 
 
 def identify_from_string(
     text: str,
     format: str,
     overlap_policy: str = "discard",
-    style: str = "hex",
 ) -> str:
     """Parse a GFA string and return its identifier. Useful in tests."""
     from pangenome_id.parsers.gfa1 import GFA1Parser
@@ -52,4 +43,4 @@ def identify_from_string(
         graph = parser.parse_string(text)
     else:
         raise ValueError(f"Unknown format: {format!r}")
-    return identify_graph(graph, style)
+    return identify_graph(graph)

@@ -1,7 +1,6 @@
 """Tests for GFA v2 parser."""
 
-import hashlib
-
+from pangenome_id.hasher import sha512t24u
 from pangenome_id.parsers.gfa2 import GFA2Parser
 
 MINIMAL_GFA2 = """\
@@ -14,7 +13,7 @@ O\tpath1\tnode_a+ node_b+
 
 
 def _node_id(seq):
-    return hashlib.sha256(seq.encode("ascii")).hexdigest()[:16]
+    return sha512t24u(seq.encode("ascii"))
 
 
 def test_node_count():

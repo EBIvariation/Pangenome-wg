@@ -4,7 +4,7 @@ import struct
 
 from pangenome_id.model import AbstractGraph
 
-FORMAT_VERSION = 0x01
+FORMAT_VERSION = 0x02
 
 OVERLAP_POLICY_BYTES = {
     "discard": 0x00,
@@ -12,18 +12,11 @@ OVERLAP_POLICY_BYTES = {
     "full_cigar": 0x02,
 }
 
-ORIENT_BYTES = {"+": 0x00, "-": 0x01}
-
-
-def _write_len_prefixed(buf: bytearray, data: bytes, len_format: str) -> None:
-    """Append a length-prefixed field to buf.
-
-    Writes the byte-length of data using struct format len_format (little-endian),
-    followed by the raw bytes of data. This avoids null-terminator ambiguity when
-    fields may themselves contain zero bytes.
-    """
-    buf += struct.pack(len_format, len(data))
-    buf += data
+# Delimiter bytes — never appear in node ids (URL-safe base64), orientations
+# ('+'/'-'), overlap strings (CIGAR/digits), or path names.
+_SEP = b"\x00"  # field separator within a record
+_REC = b"\x01"  # record separator
+_SEC = b"\x02"  # section separator (nodes / edges / paths)
 
 
 def serialize(graph: AbstractGraph) -> bytes:
@@ -31,23 +24,25 @@ def serialize(graph: AbstractGraph) -> bytes:
 
     The layout is:
         [FORMAT_VERSION 1B] [OVERLAP_POLICY 1B]
-        [N_NODES 8B] for each node sorted by id:
-            [ID_LEN 2B] [ID] [SEQ_LEN 4B] [SEQ]
-        [N_EDGES 8B] for each edge sorted by (node_a, orient_a, node_b, orient_b):
-            [NODE_A_LEN 2B] [NODE_A] [ORIENT_A 1B]
-            [NODE_B_LEN 2B] [NODE_B] [ORIENT_B 1B]
-            [OVERLAP_LEN 2B] [OVERLAP]
-        [N_PATHS 8B] for each path sorted by name:
-            [NAME_LEN 2B] [NAME] [IS_REFERENCE 1B] [N_STEPS 4B]
-            for each step (order preserved):
-                [NODE_ID_LEN 2B] [NODE_ID] [ORIENT 1B]
+        for each node (sorted by id):
+            id \\x01
+        \\x02
+        for each edge (sorted by node_a, orient_a, node_b, orient_b):
+            node_a \\x00 orient_a \\x00 node_b \\x00 orient_b \\x00 overlap \\x01
+        \\x02
+        for each path (sorted by name), step order preserved:
+            name \\x00 is_reference \\x00 step_id \\x00 orient [ \\x00 step_id \\x00 orient ...] \\x01
+        \\x02
+
+    Delimiter bytes:
+        \\x00  field separator within a record
+        \\x01  record separator
+        \\x02  section separator
 
     Sorting nodes and edges makes the output independent of insertion order.
     Path step order is intentionally preserved — it encodes biological coordinates.
     The overlap policy byte is embedded so graphs hashed under different policies
     never collide even when the graph topology is identical.
-
-    All integers are little-endian. Orientation: '+' → 0x00, '-' → 0x01.
     """
     buf = bytearray()
 
@@ -56,36 +51,26 @@ def serialize(graph: AbstractGraph) -> bytes:
     buf += struct.pack("<B", OVERLAP_POLICY_BYTES[graph.overlap_policy])
 
     # Nodes — sorted by node id
-    sorted_nodes = sorted(graph.nodes, key=lambda n: n.id)
-    buf += struct.pack("<Q", len(sorted_nodes))
-    for node in sorted_nodes:
-        id_bytes = node.id.encode("utf-8")
-        seq_bytes = node.sequence.encode("ascii")
-        _write_len_prefixed(buf, id_bytes, "<H")
-        _write_len_prefixed(buf, seq_bytes, "<I")
+    for node in sorted(graph.nodes, key=lambda n: n.id):
+        buf += node.id.encode("ascii") + _REC
+    buf += _SEC
 
     # Edges — sorted by (node_a, orient_a, node_b, orient_b)
-    sorted_edges = sorted(
-        graph.edges, key=lambda e: (e.node_a, e.orient_a, e.node_b, e.orient_b)
-    )
-    buf += struct.pack("<Q", len(sorted_edges))
-    for edge in sorted_edges:
-        _write_len_prefixed(buf, edge.node_a.encode("utf-8"), "<H")
-        buf += struct.pack("<B", ORIENT_BYTES[edge.orient_a])
-        _write_len_prefixed(buf, edge.node_b.encode("utf-8"), "<H")
-        buf += struct.pack("<B", ORIENT_BYTES[edge.orient_b])
-        overlap_bytes = (edge.overlap or "").encode("utf-8")
-        _write_len_prefixed(buf, overlap_bytes, "<H")
+    for edge in sorted(graph.edges, key=lambda e: (e.node_a, e.orient_a, e.node_b, e.orient_b)):
+        buf += edge.node_a.encode("ascii") + _SEP
+        buf += edge.orient_a.encode("ascii") + _SEP
+        buf += edge.node_b.encode("ascii") + _SEP
+        buf += edge.orient_b.encode("ascii") + _SEP
+        buf += (edge.overlap or "").encode("ascii") + _REC
+    buf += _SEC
 
     # Paths — sorted by name; step order preserved
-    sorted_paths = sorted(graph.paths, key=lambda p: p.name)
-    buf += struct.pack("<Q", len(sorted_paths))
-    for path in sorted_paths:
-        _write_len_prefixed(buf, path.name.encode("utf-8"), "<H")
-        buf += struct.pack("<B", 0x01 if path.is_reference else 0x00)
-        buf += struct.pack("<I", len(path.steps))
+    for path in sorted(graph.paths, key=lambda p: p.name):
+        buf += path.name.encode("utf-8") + _SEP
+        buf += (b"1" if path.is_reference else b"0")
         for step in path.steps:
-            _write_len_prefixed(buf, step.node_id.encode("utf-8"), "<H")
-            buf += struct.pack("<B", ORIENT_BYTES[step.orient])
+            buf += _SEP + step.node_id.encode("ascii") + _SEP + step.orient.encode("ascii")
+        buf += _REC
+    buf += _SEC
 
     return bytes(buf)

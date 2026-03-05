@@ -1,7 +1,6 @@
 """Tests for GFA v1 parser."""
 
-import hashlib
-
+from pangenome_id.hasher import sha512t24u
 from pangenome_id.parsers.gfa1 import GFA1Parser
 
 MINIMAL_GFA1 = """\
@@ -14,7 +13,7 @@ P\tp1\ts1+,s2+\t*
 
 
 def _node_id(seq):
-    return hashlib.sha256(seq.encode("ascii")).hexdigest()[:16]
+    return sha512t24u(seq.encode("ascii"))
 
 
 def test_node_count():
@@ -28,12 +27,6 @@ def test_node_ids_are_sequence_derived():
     assert _node_id("ACGT") in ids
     assert _node_id("TTGC") in ids
 
-
-def test_node_sequences():
-    g = GFA1Parser().parse_string(MINIMAL_GFA1)
-    seqs = {n.sequence for n in g.nodes}
-    assert "ACGT" in seqs
-    assert "TTGC" in seqs
 
 
 def test_edge_count():
@@ -99,3 +92,80 @@ def test_comments_skipped():
 def test_is_reference_false():
     g = GFA1Parser().parse_string(MINIMAL_GFA1)
     assert g.paths[0].is_reference is False
+
+
+# --- GFA 1.2 Walk ('W') lines ---
+
+WALK_GFA = """\
+H\tVN:Z:1.2
+S\ts1\tACGT
+S\ts2\tTTGC
+W\tNA12878\t1\tchr1\t0\t8\t>s1>s2
+"""
+
+
+def test_walk_parsed_as_path():
+    g = GFA1Parser().parse_string(WALK_GFA)
+    assert len(g.paths) == 1
+
+
+def test_walk_path_name_uses_pansn():
+    g = GFA1Parser().parse_string(WALK_GFA)
+    assert g.paths[0].name == "NA12878#1#chr1"
+
+
+def test_walk_step_count():
+    g = GFA1Parser().parse_string(WALK_GFA)
+    assert len(g.paths[0].steps) == 2
+
+
+def test_walk_step_order_and_orientation():
+    g = GFA1Parser().parse_string(WALK_GFA)
+    steps = g.paths[0].steps
+    assert steps[0].node_id == _node_id("ACGT")
+    assert steps[0].orient == "+"
+    assert steps[1].node_id == _node_id("TTGC")
+    assert steps[1].orient == "+"
+
+
+def test_walk_reverse_orientation():
+    gfa = "H\tVN:Z:1.2\nS\ts1\tACGT\nS\ts2\tTTGC\nW\tsample\t0\tchr1\t0\t8\t>s1<s2\n"
+    g = GFA1Parser().parse_string(gfa)
+    steps = g.paths[0].steps
+    assert steps[1].orient == "-"
+
+
+# --- GFA 1.2 Jump ('J') lines ---
+
+JUMP_GFA = """\
+H\tVN:Z:1.2
+S\ts1\tACGT
+S\ts2\tTTGC
+J\ts1\t+\ts2\t+\t100
+"""
+
+
+def test_jump_parsed_as_edge():
+    g = GFA1Parser().parse_string(JUMP_GFA)
+    assert len(g.edges) == 1
+
+
+def test_jump_connects_correct_nodes():
+    g = GFA1Parser().parse_string(JUMP_GFA)
+    edge = g.edges[0]
+    assert {edge.node_a, edge.node_b} == {_node_id("ACGT"), _node_id("TTGC")}
+
+
+def test_jump_overlap_discard():
+    g = GFA1Parser(overlap_policy="discard").parse_string(JUMP_GFA)
+    assert g.edges[0].overlap is None
+
+
+def test_jump_overlap_length_only():
+    g = GFA1Parser(overlap_policy="length_only").parse_string(JUMP_GFA)
+    assert g.edges[0].overlap == "100"
+
+
+def test_jump_overlap_full_cigar():
+    g = GFA1Parser(overlap_policy="full_cigar").parse_string(JUMP_GFA)
+    assert g.edges[0].overlap == "100"

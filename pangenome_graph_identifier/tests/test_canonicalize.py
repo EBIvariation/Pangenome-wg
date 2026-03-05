@@ -6,8 +6,8 @@ from pangenome_id.model import AbstractGraph, Edge, Node, Path, Step
 
 def _make_graph():
     nodes = [
-        Node(id="aaaa", sequence="ACGT"),
-        Node(id="bbbb", sequence="TTGC"),
+        Node(id="aaaa"),
+        Node(id="bbbb"),
     ]
     edges = [
         Edge(node_a="aaaa", orient_a="+", node_b="bbbb", orient_b="+"),
@@ -34,7 +34,7 @@ def test_node_order_does_not_affect_output():
 
 def test_edge_order_does_not_affect_output():
     """Reordering edges must not change canonical bytes."""
-    nodes = [Node(id="aaaa", sequence="ACGT"), Node(id="bbbb", sequence="TTGC"), Node(id="cccc", sequence="GGGG")]
+    nodes = [Node(id="aaaa"), Node(id="bbbb"), Node(id="cccc")]
     e1 = Edge(node_a="aaaa", orient_a="+", node_b="bbbb", orient_b="+")
     e2 = Edge(node_a="aaaa", orient_a="+", node_b="cccc", orient_b="+")
     path = Path(name="p", steps=[])
@@ -46,7 +46,7 @@ def test_edge_order_does_not_affect_output():
 
 def test_path_step_order_is_preserved():
     """Reversing path steps must produce different canonical bytes."""
-    nodes = [Node(id="aaaa", sequence="ACGT"), Node(id="bbbb", sequence="TTGC")]
+    nodes = [Node(id="aaaa"), Node(id="bbbb")]
     edge = Edge(node_a="aaaa", orient_a="+", node_b="bbbb", orient_b="+")
 
     steps_fwd = [Step(node_id="aaaa", orient="+"), Step(node_id="bbbb", orient="+")]
