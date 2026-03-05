@@ -1,6 +1,5 @@
 """CLI entry point for pangenome-id."""
 
-from __future__ import annotations
 import argparse
 import sys
 

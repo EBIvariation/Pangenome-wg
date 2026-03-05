@@ -1,6 +1,5 @@
 """Canonical serialization of AbstractGraph to deterministic bytes."""
 
-from __future__ import annotations
 import struct
 
 from pangenome_id.model import AbstractGraph
