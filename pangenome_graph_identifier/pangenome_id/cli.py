@@ -6,6 +6,8 @@ import sys
 
 def _detect_format(filepath: str) -> str:
     """Auto-detect format from header line or file extension."""
+    if filepath.lower().endswith(".pg"):
+        return "pg"
     with open(filepath, "r") as fh:
         for line in fh:
             line = line.rstrip("\n")
@@ -31,7 +33,7 @@ def main() -> None:
     parser.add_argument("file", help="Path to the pangenome graph file")
     parser.add_argument(
         "--format",
-        choices=["gfa1", "gfa2", "auto"],
+        choices=["gfa1", "gfa2", "pg", "auto"],
         default="auto",
         help="File format (default: auto)",
     )
@@ -60,6 +62,10 @@ def main() -> None:
     if fmt == "gfa1":
         gfa_parser = GFA1Parser(overlap_policy=args.overlap_policy)
         format_label = "GFA v1"
+    elif fmt == "pg":
+        from pangenome_id.parsers.packed_graph import PackedGraphParser
+        gfa_parser = PackedGraphParser(overlap_policy=args.overlap_policy)
+        format_label = "vg PackedGraph"
     else:
         gfa_parser = GFA2Parser(overlap_policy=args.overlap_policy)
         format_label = "GFA v2"
