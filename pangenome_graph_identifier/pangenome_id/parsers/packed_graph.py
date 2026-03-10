@@ -1,5 +1,4 @@
 """vg PackedGraph (.pg) parser — requires libbdsg (pip install libbdsg)."""
-from __future__ import annotations
 from pangenome_id.model import AbstractGraph, Node, Edge, Path, Step
 from pangenome_id.parsers.base import BaseParser
 
