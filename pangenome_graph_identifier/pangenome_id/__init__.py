@@ -1,5 +1,5 @@
 """Pangenome Graph Identifier — stable, deterministic, format-independent SHA-512 truncated hash."""
 
-from pangenome_id.hasher import compute_identifier, identify_from_string
+from pangenome_id.hasher import identify_from_string, identify_graph
 
-__all__ = ["compute_identifier", "identify_from_string"]
+__all__ = ["identify_graph", "identify_from_string"]

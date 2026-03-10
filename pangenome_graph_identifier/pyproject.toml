@@ -2,6 +2,7 @@
 name = "pangenome-id"
 version = "0.1.0"
 requires-python = ">=3.10"
+dependencies = ["rfc8785"]
 
 [project.scripts]
 pangenome-id = "pangenome_id.cli:main"

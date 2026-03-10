@@ -1,6 +1,8 @@
 """Tests for canonical serialization."""
 
-from pangenome_id.canonicalize import serialize
+import json
+
+from pangenome_id.canonicalize import serialize, serialize_path, serialize_topology
 from pangenome_id.model import AbstractGraph, Edge, Node, Path, Step
 
 
@@ -21,7 +23,10 @@ def test_serialize_is_bytes():
     g = _make_graph()
     result = serialize(g)
     assert isinstance(result, bytes)
-    assert len(result) > 0
+    doc = json.loads(result)
+    assert "graph_topology" in doc
+    assert "names" in doc
+    assert "paths" in doc
 
 
 def test_node_order_does_not_affect_output():
@@ -64,3 +69,34 @@ def test_overlap_policy_embedded():
     g2 = _make_graph()
     g2.overlap_policy = "length_only"
     assert serialize(g1) != serialize(g2)
+
+
+def test_serialize_topology_excludes_paths():
+    """Adding paths must not change serialize_topology() output."""
+    nodes = [Node(id="aaaa"), Node(id="bbbb")]
+    edge = Edge(node_a="aaaa", orient_a="+", node_b="bbbb", orient_b="+")
+    steps = [Step(node_id="aaaa", orient="+"), Step(node_id="bbbb", orient="+")]
+
+    g1 = AbstractGraph(nodes=nodes, edges=[edge], paths=[])
+    g2 = AbstractGraph(nodes=nodes, edges=[edge], paths=[Path(name="p1", steps=steps)])
+    assert serialize_topology(g1) == serialize_topology(g2)
+
+
+def test_serialize_path_excludes_name():
+    """Two paths with different names but identical steps have equal serialize_path() output."""
+    steps = [Step(node_id="aaaa", orient="+"), Step(node_id="bbbb", orient="+")]
+    p1 = Path(name="alpha", steps=steps)
+    p2 = Path(name="beta", steps=steps)
+    assert serialize_path(p1) == serialize_path(p2)
+
+
+def test_serialize_paths_sorted_by_digest():
+    """serialize(g)['paths'] is sorted lexicographically."""
+    nodes = [Node(id="aaaa"), Node(id="bbbb"), Node(id="cccc")]
+    steps_ab = [Step(node_id="aaaa", orient="+"), Step(node_id="bbbb", orient="+")]
+    steps_ac = [Step(node_id="aaaa", orient="+"), Step(node_id="cccc", orient="+")]
+    paths = [Path(name="p2", steps=steps_ac), Path(name="p1", steps=steps_ab)]
+    g = AbstractGraph(nodes=nodes, edges=[], paths=paths)
+
+    doc = json.loads(serialize(g))
+    assert doc["paths"] == sorted(doc["paths"])
