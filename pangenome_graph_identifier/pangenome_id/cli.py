@@ -57,7 +57,6 @@ def main() -> None:
     from pangenome_id.parsers.gfa1 import GFA1Parser
     from pangenome_id.parsers.gfa2 import GFA2Parser
     from pangenome_id.canonicalize import serialize
-    from pangenome_id.hasher import compute_identifier
 
     if fmt == "gfa1":
         gfa_parser = GFA1Parser(overlap_policy=args.overlap_policy)
@@ -72,9 +71,7 @@ def main() -> None:
 
     graph = gfa_parser.parse(args.file)
     canonical = serialize(graph)
-    identifier = compute_identifier(canonical)
-
-    print(identifier)
+    sys.stdout.buffer.write(canonical + b"\n")
 
     if args.verbose:
         print(f"Format:         {format_label}", file=sys.stderr)
@@ -82,7 +79,6 @@ def main() -> None:
         print(f"Edges:          {len(graph.edges)}", file=sys.stderr)
         print(f"Paths:          {len(graph.paths)}", file=sys.stderr)
         print(f"Overlap policy: {args.overlap_policy}", file=sys.stderr)
-        print(f"Canonical size: {len(canonical)} bytes", file=sys.stderr)
 
 
 if __name__ == "__main__":

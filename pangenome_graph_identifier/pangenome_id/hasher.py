@@ -1,7 +1,8 @@
-"""Hash canonical bytes into a graph identifier."""
+"""Identify a pangenome graph by hashing its canonical JSON serialization."""
 
 import base64
 import hashlib
+import json
 
 from pangenome_id.canonicalize import serialize
 from pangenome_id.model import AbstractGraph
@@ -13,25 +14,17 @@ def sha512t24u(data: bytes) -> str:
     return base64.urlsafe_b64encode(digest[:24]).decode("ascii")
 
 
-def compute_identifier(canonical_bytes: bytes) -> str:
-    """Hash canonical bytes into a GA4GH-style graph identifier.
-
-    Returns a string of the form "ga4gh:pg.<32 url-safe base64 chars>",
-    derived from the sha512t24u digest of the canonical bytes.
-    """
-    return f"ga4gh:pg.{sha512t24u(canonical_bytes)}"
-
-
-def identify_graph(graph: AbstractGraph) -> str:
-    return compute_identifier(serialize(graph))
+def identify_graph(graph: AbstractGraph) -> dict:
+    """Return the canonical JSON document for a graph as a Python dict."""
+    return json.loads(serialize(graph))
 
 
 def identify_from_string(
     text: str,
     format: str,
     overlap_policy: str = "discard",
-) -> str:
-    """Parse a GFA string and return its identifier. Useful in tests."""
+) -> dict:
+    """Parse a GFA string and return its identifier dict. Useful in tests."""
     from pangenome_id.parsers.gfa1 import GFA1Parser
     from pangenome_id.parsers.gfa2 import GFA2Parser
 

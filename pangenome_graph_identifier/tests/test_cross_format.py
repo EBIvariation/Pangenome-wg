@@ -22,12 +22,12 @@ O\tpath1\tnode_a+ node_b+
 def test_cross_format_identity():
     id1 = identify_from_string(GFA1_GRAPH, format="gfa1")
     id2 = identify_from_string(GFA2_GRAPH, format="gfa2")
-    assert id1 == id2, f"GFA1={id1!r}, GFA2={id2!r}"
+    assert id1["graph_topology"] == id2["graph_topology"], f"GFA1={id1!r}, GFA2={id2!r}"
 
 
-def test_identifier_has_ga4gh_prefix():
+def test_identifier_is_bare_base64():
     id1 = identify_from_string(GFA1_GRAPH, format="gfa1")
-    assert id1.startswith("ga4gh:pg.")
+    assert len(id1["graph_topology"]) == 32
 
 
 # ── Collision sanity checks ──────────────────────────────────────────────────
@@ -45,7 +45,7 @@ P\tpath1\tseq1+,seq2+\t*
 def test_extra_node_different_hash():
     base_id = identify_from_string(GFA1_GRAPH, format="gfa1")
     extra_id = identify_from_string(GFA1_EXTRA_NODE, format="gfa1")
-    assert base_id != extra_id
+    assert base_id["graph_topology"] != extra_id["graph_topology"]
 
 
 GFA1_REVERSED_STEP = """\
@@ -60,10 +60,16 @@ P\tpath1\tseq2+,seq1+\t*
 def test_reversed_step_different_hash():
     base_id = identify_from_string(GFA1_GRAPH, format="gfa1")
     rev_id = identify_from_string(GFA1_REVERSED_STEP, format="gfa1")
-    assert base_id != rev_id
+    assert base_id["paths"] != rev_id["paths"]
 
 
 def test_overlap_policy_different_hash():
     id_discard = identify_from_string(GFA1_GRAPH, format="gfa1", overlap_policy="discard")
     id_length = identify_from_string(GFA1_GRAPH, format="gfa1", overlap_policy="length_only")
-    assert id_discard != id_length
+    assert id_discard["graph_topology"] != id_length["graph_topology"]
+
+
+def test_path_digest_independent_of_overlap_policy():
+    id_discard = identify_from_string(GFA1_GRAPH, format="gfa1", overlap_policy="discard")
+    id_length = identify_from_string(GFA1_GRAPH, format="gfa1", overlap_policy="length_only")
+    assert id_discard["paths"] == id_length["paths"]
