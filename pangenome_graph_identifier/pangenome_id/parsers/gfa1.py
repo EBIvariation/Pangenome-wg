@@ -28,9 +28,9 @@ class GFA1Parser(BaseParser):
             if record_type == "S":
                 name = fields[1]
                 seq = fields[2] if len(fields) > 2 else "*"
-                node_id = self.node_id_from_sequence(seq, name)
-                name_to_id[name] = node_id
-                nodes.append(Node(id=node_id))
+                node = self.node_from_sequence(seq, name)
+                name_to_id[name] = node.id
+                nodes.append(node)
 
             elif record_type == "L":
                 # L <from> <from_orient> <to> <to_orient> <cigar>

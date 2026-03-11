@@ -5,7 +5,7 @@ import warnings
 from abc import ABC, abstractmethod
 
 from pangenome_id.hasher import sha512t24u
-from pangenome_id.model import AbstractGraph, Edge
+from pangenome_id.model import AbstractGraph, Edge, Node
 
 
 class BaseParser(ABC):
@@ -17,7 +17,7 @@ class BaseParser(ABC):
         ...
 
     def normalize_sequence(self, seq: str) -> str:
-        return seq.strip().upper().replace("U", "T")
+        return seq.strip().upper()
 
     def flip_orient(self, orient: str) -> str:
         return "-" if orient == "+" else "+"
@@ -27,14 +27,21 @@ class BaseParser(ABC):
 
         If seq is '*', use fallback_name as node_id.
         """
+        return self.node_from_sequence(seq, fallback_name).id
+
+    def node_from_sequence(self, seq: str, fallback_name: str) -> Node:
+        """Return a Node with id and sequence derived from seq.
+
+        If seq is '*', id is fallback_name and sequence is None.
+        """
         if seq == "*":
             warnings.warn(
                 f"Node '{fallback_name}' has no sequence; sequence-derived identity unavailable.",
                 stacklevel=3,
             )
-            return fallback_name
+            return Node(id=fallback_name, sequence=None)
         normalized = self.normalize_sequence(seq)
-        return sha512t24u(normalized.encode("ascii"))
+        return Node(id=sha512t24u(normalized.encode("ascii")), sequence=normalized)
 
     def canonical_edge(
         self,

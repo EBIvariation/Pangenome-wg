@@ -23,9 +23,9 @@ class PackedGraphParser(BaseParser):
 
         def _collect_node(h):
             seq = g.get_sequence(h)
-            nid = self.node_id_from_sequence(seq, fallback_name=str(g.get_id(h)))
-            int_to_id[g.get_id(h)] = nid
-            nodes.append(Node(id=nid))
+            node = self.node_from_sequence(seq, fallback_name=str(g.get_id(h)))
+            int_to_id[g.get_id(h)] = node.id
+            nodes.append(node)
             return True
 
         g.for_each_handle(_collect_node)
