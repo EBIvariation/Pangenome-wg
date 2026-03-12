@@ -194,3 +194,21 @@ def test_node_sequence_uppercase_no_u_to_t():
     gfa = "H\tVN:Z:1.0\nS\ts1\tacgu\n"
     g = GFA1Parser().parse_string(gfa)
     assert g.nodes[0].sequence == "ACGU"
+
+
+def test_parse_gzipped_file():
+    """parse() transparently decompresses .gfa.gz files."""
+    import gzip
+    import os
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".gfa.gz", delete=False) as f:
+        tmp = f.name
+    try:
+        with gzip.open(tmp, "wt") as gz:
+            gz.write(MINIMAL_GFA1)
+        g = GFA1Parser().parse(tmp)
+        assert len(g.nodes) == 2
+        assert len(g.paths) == 1
+    finally:
+        os.unlink(tmp)

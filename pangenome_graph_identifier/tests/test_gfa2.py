@@ -90,3 +90,21 @@ def test_overlap_policy_length_only():
     # beg1=4, end1=4$ → overlap = 4-4 = 0
     g = GFA2Parser(overlap_policy="length_only").parse_string(MINIMAL_GFA2)
     assert g.edges[0].overlap == "0"
+
+
+def test_parse_gzipped_file():
+    """parse() transparently decompresses .gfa.gz files."""
+    import gzip
+    import os
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".gfa.gz", delete=False) as f:
+        tmp = f.name
+    try:
+        with gzip.open(tmp, "wt") as gz:
+            gz.write(MINIMAL_GFA2)
+        g = GFA2Parser().parse(tmp)
+        assert len(g.nodes) == 2
+        assert len(g.paths) == 1
+    finally:
+        os.unlink(tmp)

@@ -1,12 +1,12 @@
 """GFA v1 / v1.2 parser."""
 
 from pangenome_id.model import AbstractGraph, Node, Path, Step
-from pangenome_id.parsers.base import BaseParser
+from pangenome_id.parsers.base import BaseParser, _open_file
 
 
 class GFA1Parser(BaseParser):
     def parse(self, filepath: str) -> AbstractGraph:
-        with open(filepath, "r") as fh:
+        with _open_file(filepath) as fh:
             return self._parse_lines(fh)
 
     def parse_string(self, text: str) -> AbstractGraph:

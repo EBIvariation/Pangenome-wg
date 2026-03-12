@@ -1,11 +1,19 @@
 """Abstract base parser."""
 
+import gzip
 import re
 import warnings
 from abc import ABC, abstractmethod
 
 from pangenome_id.hasher import sha512t24u
 from pangenome_id.model import AbstractGraph, Edge, Node
+
+
+def _open_file(filepath: str):
+    """Open a file for reading, transparently decompressing if .gz."""
+    if filepath.lower().endswith(".gz"):
+        return gzip.open(filepath, "rt")
+    return open(filepath, "r")
 
 
 class BaseParser(ABC):
