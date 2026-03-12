@@ -1,6 +1,6 @@
 """Abstract Graph Model dataclasses."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -29,6 +29,8 @@ class Path:
     name: str
     steps: list[Step]
     is_reference: bool = False
+    _topology_digest: str | None = field(default=None, compare=False, repr=False)
+    _sequence_digest: str | None = field(default=None, compare=False, repr=False)
 
 
 @dataclass
