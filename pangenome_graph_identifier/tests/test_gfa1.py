@@ -114,25 +114,48 @@ def test_walk_path_name_uses_pansn():
     assert g.paths[0].name == "NA12878#1#chr1"
 
 
-def test_walk_step_count():
+def test_walk_steps_empty():
+    # W paths are processed into pre-computed digests; steps are not expanded
     g = GFA1Parser().parse_string(WALK_GFA)
-    assert len(g.paths[0].steps) == 2
+    assert g.paths[0].steps == []
 
 
-def test_walk_step_order_and_orientation():
+def test_walk_topology_digest_set():
     g = GFA1Parser().parse_string(WALK_GFA)
-    steps = g.paths[0].steps
-    assert steps[0].node_id == _node_id("ACGT")
-    assert steps[0].orient == "+"
-    assert steps[1].node_id == _node_id("TTGC")
-    assert steps[1].orient == "+"
+    assert g.paths[0]._topology_digest is not None
 
 
-def test_walk_reverse_orientation():
-    gfa = "H\tVN:Z:1.2\nS\ts1\tACGT\nS\ts2\tTTGC\nW\tsample\t0\tchr1\t0\t8\t>s1<s2\n"
-    g = GFA1Parser().parse_string(gfa)
-    steps = g.paths[0].steps
-    assert steps[1].orient == "-"
+def test_walk_sequence_digest_set():
+    g = GFA1Parser().parse_string(WALK_GFA)
+    assert g.paths[0]._sequence_digest is not None
+
+
+def test_walk_reverse_orientation_sequence_digest():
+    # Reverse orientation uses reverse complement; digest should differ from forward
+    gfa_fwd = "H\tVN:Z:1.2\nS\ts1\tACGT\nS\ts2\tTTGC\nW\tsample\t0\tchr1\t0\t8\t>s1>s2\n"
+    gfa_rev = "H\tVN:Z:1.2\nS\ts1\tACGT\nS\ts2\tTTGC\nW\tsample\t0\tchr1\t0\t8\t>s1<s2\n"
+    g_fwd = GFA1Parser().parse_string(gfa_fwd)
+    g_rev = GFA1Parser().parse_string(gfa_rev)
+    assert g_fwd.paths[0]._sequence_digest != g_rev.paths[0]._sequence_digest
+
+
+def test_walk_topology_digest_matches_rfc8785():
+    """Streaming hash must match sha512t24u(rfc8785.dumps(serialize_path(p))) for a W path."""
+    import rfc8785
+    from pangenome_id.canonicalize import serialize_path, sha512t24u
+    from pangenome_id.model import Step
+
+    g = GFA1Parser().parse_string(WALK_GFA)
+    walk_path = g.paths[0]
+
+    # Reconstruct expected path with actual steps for reference hash
+    id_s1 = _node_id("ACGT")
+    id_s2 = _node_id("TTGC")
+    from pangenome_id.model import Path
+    reference_path = Path(name=walk_path.name, steps=[Step(id_s1, "+"), Step(id_s2, "+")], is_reference=False)
+    expected_digest = sha512t24u(serialize_path(reference_path))
+
+    assert walk_path._topology_digest == expected_digest
 
 
 # --- GFA 1.2 Jump ('J') lines ---

@@ -100,10 +100,18 @@ def serialize(graph: AbstractGraph) -> bytes:
     The returned bytes can be parsed as JSON directly.
     """
     topology_digest = sha512t24u(serialize_topology(graph))
-    seq_by_id = {n.id: n.sequence for n in graph.nodes}
+    seq_by_id = (
+        {n.id: n.sequence for n in graph.nodes}
+        if any(p._topology_digest is None for p in graph.paths)
+        else {}
+    )
     triples = sorted(
-        [(sha512t24u(serialize_path(p)), p.name, sequence_digest_for_path(p, seq_by_id))
-         for p in graph.paths]
+        [
+            (p._topology_digest, p.name, p._sequence_digest)
+            if p._topology_digest is not None
+            else (sha512t24u(serialize_path(p)), p.name, sequence_digest_for_path(p, seq_by_id))
+            for p in graph.paths
+        ]
     )  # sort by path topology digest (first element)
     doc = {
         "graph_topology": topology_digest,
