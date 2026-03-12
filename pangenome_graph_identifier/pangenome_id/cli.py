@@ -1,14 +1,17 @@
 """CLI entry point for pangenome-id."""
 
 import argparse
+import gzip
 import sys
 
 
 def _detect_format(filepath: str) -> str:
     """Auto-detect format from header line or file extension."""
-    if filepath.lower().endswith(".pg"):
+    lower = filepath.lower()
+    if lower.endswith(".pg"):
         return "pg"
-    with open(filepath, "r") as fh:
+    opener = gzip.open if lower.endswith(".gz") else open
+    with opener(filepath, "rt") as fh:
         for line in fh:
             line = line.rstrip("\n")
             if not line or line.startswith("#"):
@@ -18,7 +21,8 @@ def _detect_format(filepath: str) -> str:
             if "VN:Z:1" in line:
                 return "gfa1"
             break
-    if filepath.lower().endswith(".gfa"):
+    stem = lower[:-3] if lower.endswith(".gz") else lower
+    if stem.endswith(".gfa"):
         return "gfa1"
     raise ValueError(
         "Cannot auto-detect format. Please specify --format {gfa1,gfa2}."

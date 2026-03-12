@@ -1,12 +1,12 @@
 """GFA v2 parser."""
 
 from pangenome_id.model import AbstractGraph, Node, Path, Step
-from pangenome_id.parsers.base import BaseParser
+from pangenome_id.parsers.base import BaseParser, _open_file
 
 
 class GFA2Parser(BaseParser):
     def parse(self, filepath: str) -> AbstractGraph:
-        with open(filepath, "r") as fh:
+        with _open_file(filepath) as fh:
             return self._parse_lines(fh)
 
     def parse_string(self, text: str) -> AbstractGraph:
@@ -29,9 +29,9 @@ class GFA2Parser(BaseParser):
                 # S <id> <len> <seq> [tags...]
                 seg_id = fields[1]
                 seq = fields[3] if len(fields) > 3 else "*"
-                node_id = self.node_id_from_sequence(seq, seg_id)
-                name_to_id[seg_id] = node_id
-                nodes.append(Node(id=node_id))
+                node = self.node_from_sequence(seq, seg_id)
+                name_to_id[seg_id] = node.id
+                nodes.append(node)
 
             elif record_type == "E":
                 # E <edge_id> <sid1><orient> <sid2><orient> <beg1> <end1> <beg2> <end2> <align>

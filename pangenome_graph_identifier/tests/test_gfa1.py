@@ -169,3 +169,46 @@ def test_jump_overlap_length_only():
 def test_jump_overlap_full_cigar():
     g = GFA1Parser(overlap_policy="full_cigar").parse_string(JUMP_GFA)
     assert g.edges[0].overlap == "100"
+
+
+# --- Node.sequence population ---
+
+def test_node_sequence_populated():
+    g = GFA1Parser().parse_string(MINIMAL_GFA1)
+    seqs = {n.id: n.sequence for n in g.nodes}
+    assert seqs[_node_id("ACGT")] == "ACGT"
+    assert seqs[_node_id("TTGC")] == "TTGC"
+
+
+def test_node_sequence_none_for_star():
+    import warnings
+    gfa = "H\tVN:Z:1.0\nS\ts1\t*\n"
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")
+        g = GFA1Parser().parse_string(gfa)
+    assert g.nodes[0].sequence is None
+
+
+def test_node_sequence_uppercase_no_u_to_t():
+    """normalize_sequence no longer converts U to T."""
+    gfa = "H\tVN:Z:1.0\nS\ts1\tacgu\n"
+    g = GFA1Parser().parse_string(gfa)
+    assert g.nodes[0].sequence == "ACGU"
+
+
+def test_parse_gzipped_file():
+    """parse() transparently decompresses .gfa.gz files."""
+    import gzip
+    import os
+    import tempfile
+
+    with tempfile.NamedTemporaryFile(suffix=".gfa.gz", delete=False) as f:
+        tmp = f.name
+    try:
+        with gzip.open(tmp, "wt") as gz:
+            gz.write(MINIMAL_GFA1)
+        g = GFA1Parser().parse(tmp)
+        assert len(g.nodes) == 2
+        assert len(g.paths) == 1
+    finally:
+        os.unlink(tmp)

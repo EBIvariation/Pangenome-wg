@@ -6,6 +6,7 @@ from dataclasses import dataclass
 @dataclass
 class Node:
     id: str  # stable identifier derived from sequence (or source name if sequence is "*")
+    sequence: str | None = None  # normalized sequence; None for "*" wildcard nodes
 
 
 @dataclass

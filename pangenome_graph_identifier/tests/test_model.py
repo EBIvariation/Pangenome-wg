@@ -20,9 +20,10 @@ def test_normalize_sequence_uppercase():
     assert p.normalize_sequence("acgt") == "ACGT"
 
 
-def test_normalize_sequence_u_to_t():
+def test_normalize_sequence_u_preserved():
+    """U is no longer converted to T (refget compatibility)."""
     p = ConcreteParser()
-    assert p.normalize_sequence("AUCG") == "ATCG"
+    assert p.normalize_sequence("AUCG") == "AUCG"
 
 
 def test_normalize_sequence_strips_whitespace():
@@ -41,9 +42,10 @@ def test_node_id_lowercase_normalized():
     assert p.node_id_from_sequence("acgt", "x") == p.node_id_from_sequence("ACGT", "x")
 
 
-def test_node_id_u_to_t_normalized():
+def test_node_id_u_distinct_from_t():
+    """U is preserved (not converted to T), so AUCG and ATCG have different node IDs."""
     p = ConcreteParser()
-    assert p.node_id_from_sequence("AUCG", "x") == p.node_id_from_sequence("ATCG", "x")
+    assert p.node_id_from_sequence("AUCG", "x") != p.node_id_from_sequence("ATCG", "x")
 
 
 def test_node_id_star_uses_fallback():

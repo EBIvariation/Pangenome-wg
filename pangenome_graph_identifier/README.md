@@ -27,7 +27,7 @@ GFA file ──[parse]──► Abstract Graph Model ──[serialize]──► 
 }
 ```
 
-**Per-path document** (hashed → path digest):
+**Per-path document** (hashed → path topology digest):
 ```json
 {
   "is_reference": false,
@@ -40,7 +40,8 @@ GFA file ──[parse]──► Abstract Graph Model ──[serialize]──► 
 {
   "graph_topology": "<32-char-b64>",
   "names": ["path_name_a", "path_name_b"],
-  "paths": ["<digest_a>", "<digest_b>"]
+  "paths": ["<topo_digest_a>", "<topo_digest_b>"],
+  "sequences": ["<seq_digest_a>", "<seq_digest_b>"]
 }
 ```
 
@@ -52,7 +53,7 @@ Node identities are derived from their **sequence content**, not from the name a
 node.id = sha512t24u(normalized_sequence)
 ```
 
-`sha512t24u` is the GA4GH standard digest: SHA-512 of the UTF-8 sequence, first 24 bytes, URL-safe base64 encoded (32 ASCII chars).
+`sha512t24u` is the GA4GH standard digest: SHA-512 of the UTF-8 sequence, first 24 bytes, URL-safe base64 encoded (32 ASCII chars). Sequences are normalized to uppercase only — no other transformation is applied.
 
 Two formats that represent the same genomic sequence under different node names therefore produce the same node id, and thus the same graph hash.
 
@@ -117,7 +118,7 @@ Overlap policy: discard
 The CLI writes the RFC-8785 canonical JSON document to stdout:
 
 ```json
-{"graph_topology":"SXaB3kqLm9vNpRt7YwZcAeQf12345678","names":["path1","path2"],"paths":["Ab1Cd2Ef3Gh4Ij5Kl6Mn7Op8Qr9St0Uv","Wx1Yz2Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr"]}
+{"graph_topology":"SXaB3kqLm9vNpRt7YwZcAeQf12345678","names":["path1","path2"],"paths":["Ab1Cd2Ef3Gh4Ij5Kl6Mn7Op8Qr9St0Uv","Wx1Yz2Ab3Cd4Ef5Gh6Ij7Kl8Mn9Op0Qr"],"sequences":["Pq2Rs3Tu4Vw5Xy6Za7Bc8De9Fg0Hi1Jk","Lm2No3Pq4Rs5Tu6Vw7Xy8Za9Bc0De1Fg"]}
 ```
 
 All digest values are bare 32-character URL-safe base64 strings (sha512t24u: first 24 bytes of SHA-512).
@@ -169,6 +170,17 @@ All digest values are bare 32-character URL-safe base64 strings (sha512t24u: fir
 
 The path name is **not** included in the per-path document — it appears only in the graph document's `names` array, linked by position to the corresponding path digest.
 
+### Complete graph document fields
+
+| Field | Description |
+|---|---|
+| `graph_topology` | sha512t24u digest of the topology document |
+| `names` | Path names, in the order determined by `paths` |
+| `paths` | sha512t24u digests of per-path topology documents, sorted lexicographically |
+| `sequences` | sha512t24u digests of each path's concatenated nucleotide sequence, parallel to `paths` |
+
+The `sequences` array is [GA4GH refget](https://samtools.github.io/hts-specs/refget.html)-compatible: each entry is `sha512t24u` of the path's full nucleotide sequence, assembled by concatenating node sequences in traversal order (applying reverse complement for `"-"` oriented steps). A `null` entry indicates the path contains a node with no sequence (`"*"` wildcard).
+
 > **What is NOT included:** source file names, original node names (replaced by sequence-derived ids), comment/header lines, fragment records (`F`), unordered groups (`U`), and edge ids from GFA v2.
 
 ---
@@ -211,7 +223,7 @@ It is an open design question whether parsers should infer missing edges from pa
 
 | Record | Processed as | Notes |
 |--------|--------------|-------|
-| `S`    | Node  | Sequence normalized to uppercase DNA (U→T); id = `sha512t24u(sequence)` |
+| `S`    | Node  | Sequence normalized to uppercase; id = `sha512t24u(sequence)` |
 | `L`    | Edge  | CIGAR overlap resolved per overlap policy |
 | `J`    | Edge  | Jump distance (plain integer) resolved per overlap policy |
 | `P`    | Path  | Comma-separated `seg+`/`seg-` segments |
@@ -223,7 +235,7 @@ All other lines (`H`, `C`, `#`, …) are skipped.
 
 | Record | Processed as | Notes |
 |--------|--------------|-------|
-| `S`    | Node  | |
+| `S`    | Node  | Sequence normalized to uppercase; id = `sha512t24u(sequence)` |
 | `E`    | Edge  | Edge ids are discarded |
 | `O`    | Path  | Ordered group |
 
