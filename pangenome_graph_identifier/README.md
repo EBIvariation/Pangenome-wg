@@ -255,31 +255,6 @@ Format is auto-detected from the `.pg` file extension. GFA formats are auto-dete
 
 ---
 
-## Project layout
-
-```
-pangenome_graph_identifier/
-├── pangenome_id/
-│   ├── model.py          # Abstract Graph Model dataclasses
-│   ├── canonicalize.py   # AGM → RFC-8785 canonical JSON bytes
-│   ├── hasher.py         # canonical JSON → identifier dict
-│   ├── parsers/
-│   │   ├── base.py           # shared normalization and edge canonicalization
-│   │   ├── gfa1.py           # GFA v1 / v1.2 parser
-│   │   ├── gfa2.py           # GFA v2 parser
-│   │   └── packed_graph.py   # vg PackedGraph (.pg) parser (requires libbdsg)
-│   └── cli.py            # CLI entry point
-└── tests/
-    ├── test_model.py
-    ├── test_canonicalize.py
-    ├── test_gfa1.py
-    ├── test_gfa2.py
-    ├── test_cross_format.py   # cross-format identity tests
-    └── test_packed_graph.py   # PackedGraph parser (mock-based + optional real-file)
-```
-
----
-
 ## Running the tests
 
 ```bash
